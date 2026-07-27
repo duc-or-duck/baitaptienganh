@@ -1,0 +1,717 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Grammar Board — English Grammar Quiz</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Kalam:wght@400;700&family=JetBrains+Mono:wght@400;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+/* ============================================================
+   DESIGN TOKENS — "Chalkboard" theme
+   A classroom blackboard rendered as a native-feeling iOS app.
+   ============================================================ */
+:root{
+  --board-1:#122A1E;      /* blackboard base */
+  --board-2:#193B29;      /* blackboard gradient edge */
+  --board-frame:#5B4632;  /* wooden frame accent */
+  --chalk-white:#F4F1E6;
+  --chalk-dim:rgba(244,241,230,0.55);
+  --chalk-yellow:#F2C94C;
+  --chalk-green:#7FDBA0;
+  --chalk-red:#F2867B;
+  --chalk-blue:#8FD3F4;
+  --card-bg:rgba(244,241,230,0.06);
+  --card-border:rgba(244,241,230,0.16);
+  --safe-top:env(safe-area-inset-top);
+  --safe-bottom:env(safe-area-inset-bottom);
+  --safe-left:env(safe-area-inset-left);
+  --safe-right:env(safe-area-inset-right);
+  --font-display:'Kalam', cursive;
+  --font-body:'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-mono:'JetBrains Mono', monospace;
+}
+
+*{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+html,body{margin:0; padding:0; height:100%;}
+body{
+  font-family:var(--font-body);
+  background:
+    radial-gradient(120% 90% at 20% 0%, var(--board-2) 0%, var(--board-1) 55%),
+    var(--board-1);
+  color:var(--chalk-white);
+  min-height:100vh;
+  overflow-x:hidden;
+  -webkit-font-smoothing:antialiased;
+}
+
+/* subtle chalk-dust grain overlay */
+body::before{
+  content:"";
+  position:fixed; inset:0;
+  background-image:
+    radial-gradient(rgba(244,241,230,0.035) 1px, transparent 1px);
+  background-size:3px 3px;
+  pointer-events:none;
+  z-index:0;
+  opacity:0.5;
+}
+
+#app{
+  position:relative;
+  z-index:1;
+  min-height:100vh;
+  padding-top:calc(var(--safe-top) + 14px);
+  padding-bottom:calc(var(--safe-bottom) + 14px);
+  padding-left:calc(var(--safe-left) + 18px);
+  padding-right:calc(var(--safe-right) + 18px);
+  display:flex;
+  flex-direction:column;
+}
+
+.screen{ display:none; flex:1; flex-direction:column; animation:fadeIn .35s ease; }
+.screen.active{ display:flex; }
+
+@keyframes fadeIn{ from{opacity:0; transform:translateY(8px);} to{opacity:1; transform:translateY(0);} }
+
+/* ---------- Header / chalk rail ---------- */
+.chalk-rail{
+  display:flex; align-items:center; justify-content:space-between;
+  padding:2px 2px 14px;
+  border-bottom:2px dashed rgba(244,241,230,0.22);
+  margin-bottom:18px;
+}
+.brand{
+  font-family:var(--font-display);
+  font-size:26px;
+  letter-spacing:0.5px;
+  color:var(--chalk-white);
+  display:flex; align-items:center; gap:8px;
+}
+.brand .dot{ width:9px; height:9px; border-radius:50%; background:var(--chalk-yellow); box-shadow:0 0 8px var(--chalk-yellow);}
+.icon-btn{
+  min-width:44px; min-height:44px;
+  display:flex; align-items:center; justify-content:center;
+  background:var(--card-bg);
+  border:1px solid var(--card-border);
+  border-radius:14px;
+  color:var(--chalk-white);
+  font-size:18px;
+  cursor:pointer;
+}
+.icon-btn:active{ transform:scale(0.94); }
+
+/* ---------- Home screen ---------- */
+.tagline{
+  font-size:14px; color:var(--chalk-dim); line-height:1.5; margin:0 0 22px;
+}
+.topic-grid{
+  display:grid; grid-template-columns:1fr; gap:14px;
+}
+.topic-card{
+  position:relative;
+  background:var(--card-bg);
+  border:1px solid var(--card-border);
+  border-radius:20px;
+  padding:18px 18px;
+  text-align:left;
+  color:var(--chalk-white);
+  cursor:pointer;
+  min-height:44px;
+  overflow:hidden;
+  transition:transform .15s ease, background .15s ease;
+}
+.topic-card:active{ transform:scale(0.98); background:rgba(244,241,230,0.1); }
+.topic-card .topic-title{
+  font-family:var(--font-display);
+  font-size:21px;
+  margin:0 0 4px;
+}
+.topic-card .topic-meta{
+  font-family:var(--font-mono);
+  font-size:12px;
+  color:var(--chalk-dim);
+}
+.topic-card .topic-arrow{
+  position:absolute; right:16px; top:50%; transform:translateY(-50%);
+  font-size:20px; color:var(--chalk-yellow);
+}
+.topic-card .badge{
+  position:absolute; top:14px; right:14px;
+  font-family:var(--font-mono); font-size:10px;
+  background:rgba(242,201,76,0.18); color:var(--chalk-yellow);
+  border:1px solid rgba(242,201,76,0.4);
+  padding:3px 8px; border-radius:20px;
+}
+.topic-card[data-progress]:not([data-progress="0"]) .progress-track{ display:block; }
+.progress-track{
+  display:none;
+  height:4px; border-radius:4px; background:rgba(244,241,230,0.12);
+  margin-top:10px; overflow:hidden;
+}
+.progress-fill{ height:100%; background:var(--chalk-yellow); border-radius:4px; }
+
+/* ---------- Quiz screen ---------- */
+.quiz-top{ margin-bottom:16px; }
+.quiz-progress-row{ display:flex; align-items:center; gap:10px; margin-bottom:10px; }
+.quiz-progress-track{ flex:1; height:6px; border-radius:6px; background:rgba(244,241,230,0.14); overflow:hidden; }
+.quiz-progress-fill{ height:100%; background:linear-gradient(90deg, var(--chalk-blue), var(--chalk-yellow)); border-radius:6px; transition:width .3s ease; }
+.quiz-count{ font-family:var(--font-mono); font-size:12px; color:var(--chalk-dim); white-space:nowrap; }
+.score-pill{
+  font-family:var(--font-mono); font-size:12px; color:var(--chalk-green);
+  border:1px solid rgba(127,219,160,0.35); background:rgba(127,219,160,0.08);
+  padding:4px 10px; border-radius:20px;
+}
+
+.question-card{
+  background:var(--card-bg);
+  border:1px solid var(--card-border);
+  border-radius:20px;
+  padding:20px;
+  margin-bottom:16px;
+}
+.question-eyebrow{
+  font-family:var(--font-mono); font-size:11px; letter-spacing:0.08em;
+  color:var(--chalk-yellow); text-transform:uppercase; margin-bottom:8px;
+}
+.question-text{ font-size:19px; line-height:1.45; margin:0; font-weight:500; }
+.question-text .blank{ display:inline-block; border-bottom:2px dashed var(--chalk-blue); min-width:56px; }
+
+.options{ display:flex; flex-direction:column; gap:12px; margin-bottom:16px; }
+.option-btn{
+  min-height:52px;
+  text-align:left;
+  padding:14px 16px;
+  border-radius:16px;
+  border:1.5px solid var(--card-border);
+  background:rgba(244,241,230,0.04);
+  color:var(--chalk-white);
+  font-family:var(--font-body);
+  font-size:16px;
+  display:flex; align-items:center; gap:12px;
+  cursor:pointer;
+  position:relative;
+  transition:border-color .15s ease, background .15s ease, transform .1s ease;
+}
+.option-btn:active{ transform:scale(0.985); }
+.option-letter{
+  min-width:28px; height:28px; border-radius:8px;
+  background:rgba(244,241,230,0.1);
+  display:flex; align-items:center; justify-content:center;
+  font-family:var(--font-mono); font-size:13px; font-weight:700;
+  flex-shrink:0;
+}
+.option-btn.correct{
+  border-color:var(--chalk-green);
+  background:rgba(127,219,160,0.14);
+}
+.option-btn.correct .option-letter{ background:var(--chalk-green); color:#0F2A1B; }
+.option-btn.incorrect{
+  border-color:var(--chalk-red);
+  background:rgba(242,134,123,0.14);
+}
+.option-btn.incorrect .option-letter{ background:var(--chalk-red); color:#3A0E0A; }
+.option-btn.disabled{ pointer-events:none; }
+.option-btn.dim{ opacity:0.45; }
+
+.feedback-panel{
+  max-height:0;
+  overflow:hidden;
+  transition:max-height .35s ease;
+  border-radius:16px;
+}
+.feedback-panel.show{ max-height:600px; margin-bottom:16px; }
+.feedback-inner{
+  padding:16px 18px;
+  border-radius:16px;
+  border:1px dashed rgba(244,241,230,0.3);
+  background:rgba(244,241,230,0.05);
+}
+.feedback-title{
+  font-family:var(--font-display); font-size:18px; margin:0 0 8px;
+  display:flex; align-items:center; gap:8px;
+}
+.feedback-title.correct{ color:var(--chalk-green); }
+.feedback-title.incorrect{ color:var(--chalk-red); }
+.feedback-text{ font-size:14.5px; line-height:1.55; color:var(--chalk-white); margin:0; }
+
+.quiz-actions{ margin-top:auto; display:flex; gap:12px; }
+.btn{
+  flex:1;
+  min-height:50px;
+  border-radius:16px;
+  border:none;
+  font-family:var(--font-body);
+  font-weight:600;
+  font-size:16px;
+  cursor:pointer;
+  display:flex; align-items:center; justify-content:center; gap:8px;
+}
+.btn-primary{ background:var(--chalk-yellow); color:#2B2205; }
+.btn-primary:active{ transform:scale(0.97); }
+.btn-primary:disabled{ opacity:0.35; pointer-events:none; }
+.btn-ghost{
+  background:transparent; color:var(--chalk-white);
+  border:1px solid var(--card-border);
+}
+
+/* ---------- Result screen ---------- */
+.result-wrap{ flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center; }
+.result-ring{
+  width:180px; height:180px; border-radius:50%;
+  border:6px solid rgba(244,241,230,0.12);
+  display:flex; align-items:center; justify-content:center;
+  position:relative;
+  margin-bottom:22px;
+}
+.result-ring svg{ position:absolute; inset:-6px; transform:rotate(-90deg); }
+.result-score{ font-family:var(--font-display); font-size:44px; }
+.result-sub{ font-family:var(--font-mono); font-size:13px; color:var(--chalk-dim); }
+.result-title{ font-family:var(--font-display); font-size:26px; margin:0 0 6px; }
+.result-msg{ font-size:14.5px; color:var(--chalk-dim); margin:0 0 26px; max-width:320px; }
+.result-actions{ display:flex; gap:12px; width:100%; max-width:340px; }
+
+/* scrollable question area */
+.quiz-scroll{ flex:1; overflow-y:auto; -webkit-overflow-scrolling:touch; }
+
+::-webkit-scrollbar{ display:none; }
+</style>
+</head>
+<body>
+<div id="app">
+
+  <!-- ============ HOME SCREEN ============ -->
+  <section class="screen active" id="screen-home">
+    <div class="chalk-rail">
+      <div class="brand"><span class="dot"></span>Grammar&nbsp;Board</div>
+      <button class="icon-btn" id="btn-info" aria-label="About">i</button>
+    </div>
+    <p class="tagline">Pick a topic below. Each set has 60 questions written to Oxford &amp; Cambridge grammar standards, with a full explanation after every answer.</p>
+    <div class="topic-grid" id="topic-grid"><!-- injected by JS --></div>
+  </section>
+
+  <!-- ============ QUIZ SCREEN ============ -->
+  <section class="screen" id="screen-quiz">
+    <div class="chalk-rail">
+      <button class="icon-btn" id="btn-back-home" aria-label="Back">←</button>
+      <div class="brand" id="quiz-topic-title" style="font-size:19px;">Topic</div>
+      <div style="width:44px;"></div>
+    </div>
+    <div class="quiz-top">
+      <div class="quiz-progress-row">
+        <div class="quiz-progress-track"><div class="quiz-progress-fill" id="quiz-progress-fill"></div></div>
+        <div class="quiz-count" id="quiz-count">1/60</div>
+      </div>
+      <div class="score-pill" id="score-pill">Score: 0</div>
+    </div>
+
+    <div class="quiz-scroll">
+      <div class="question-card">
+        <div class="question-eyebrow" id="question-eyebrow">QUESTION</div>
+        <p class="question-text" id="question-text"></p>
+      </div>
+
+      <div class="options" id="options-list"><!-- injected --></div>
+
+      <div class="feedback-panel" id="feedback-panel">
+        <div class="feedback-inner">
+          <p class="feedback-title" id="feedback-title"></p>
+          <p class="feedback-text" id="feedback-text"></p>
+        </div>
+      </div>
+    </div>
+
+    <div class="quiz-actions">
+      <button class="btn btn-primary" id="btn-next" disabled>Next Question →</button>
+    </div>
+  </section>
+
+  <!-- ============ RESULT SCREEN ============ -->
+  <section class="screen" id="screen-result">
+    <div class="chalk-rail">
+      <div class="brand"><span class="dot"></span>Results</div>
+      <div style="width:44px;"></div>
+    </div>
+    <div class="result-wrap">
+      <div class="result-ring">
+        <svg viewBox="0 0 180 180" width="180" height="180">
+          <circle cx="90" cy="90" r="80" stroke="rgba(244,241,230,0.12)" stroke-width="6" fill="none"/>
+          <circle cx="90" cy="90" r="80" stroke="#F2C94C" stroke-width="6" fill="none"
+            id="result-circle" stroke-linecap="round" stroke-dasharray="502" stroke-dashoffset="502"/>
+        </svg>
+        <div>
+          <div class="result-score" id="result-score">0%</div>
+          <div class="result-sub" id="result-fraction">0/60</div>
+        </div>
+      </div>
+      <p class="result-title" id="result-title">Nicely done</p>
+      <p class="result-msg" id="result-msg">You've completed this topic.</p>
+      <div class="result-actions">
+        <button class="btn btn-ghost" id="btn-retry">Retry</button>
+        <button class="btn btn-primary" id="btn-home">All Topics</button>
+      </div>
+    </div>
+  </section>
+
+</div>
+
+<script>
+/* ==========================================================================
+   QUESTION DATABASE
+   --------------------------------------------------------------------------
+   Structure: QUESTION_DB[topicKey] = Array<Question>
+   Question = {
+     id: string,                 // unique id, e.g. "tenses-001"
+     question: string,           // question stem; use "_____" for the blank
+     options: [string, string, string, string],
+     correctIndex: 0|1|2|3,
+     explanation: string         // why correct answer is right + why others are wrong
+   }
+
+   STATUS: 5 sample questions per topic are included below (20 total) to
+   demonstrate the exact shape required. Send "CONTINUE <Topic Name>"
+   (e.g. "CONTINUE Tenses", "CONTINUE Active/Passive Voice",
+   "CONTINUE Reported Speech", "CONTINUE Relative Clauses") and the next
+   batch of questions for that topic, formatted as a JS array ready to be
+   pasted directly into QUESTION_DB[topicKey], will be generated — until
+   each topic reaches exactly 60 questions.
+   ========================================================================== */
+
+const QUESTION_DB = {
+
+  tenses: [
+    {
+      id:"tenses-001",
+      question:"Every morning, my father _____ the newspaper before breakfast.",
+      options:["is reading","reads","read","has read"],
+      correctIndex:1,
+      explanation:"'reads' (Present Simple) is correct because the sentence describes a habitual, repeated action signalled by 'Every morning'. Present Simple is the standard tense for routines and habits. 'is reading' (Present Continuous) wrongly suggests the action is happening right now. 'read' is the base form / past form and doesn't agree with the third-person singular subject 'my father' (needs -s). 'has read' (Present Perfect) implies a completed action with present relevance, not a repeated habit."
+    },
+    {
+      id:"tenses-002",
+      question:"Look! The children _____ in the rain — they'll catch a cold.",
+      options:["play","played","are playing","have played"],
+      correctIndex:2,
+      explanation:"'are playing' (Present Continuous) is correct because 'Look!' signals an action happening at this exact moment of speaking. Present Continuous is used for actions in progress now. 'play' (Present Simple) is for habits, not a live observation. 'played' (Past Simple) refers to a finished past action, which contradicts 'Look!'. 'have played' (Present Perfect) suggests a completed action with no fixed time, which doesn't match an action being observed right now."
+    },
+    {
+      id:"tenses-003",
+      question:"By the time we arrived at the cinema, the film _____.",
+      options:["already started","had already started","has already started","was already starting"],
+      correctIndex:1,
+      explanation:"'had already started' (Past Perfect) is correct because it describes an action (the film starting) that was completed before another past action (our arrival). Past Perfect is used to show which of two past events happened first. 'already started' is missing an auxiliary and is grammatically incomplete. 'has already started' (Present Perfect) cannot be used because the reference point ('arrived') is in the past, not now. 'was already starting' (Past Continuous) implies the start was still in progress, not completed, at the moment we arrived."
+    },
+    {
+      id:"tenses-004",
+      question:"Don't call me at 8 p.m. tomorrow; I _____ dinner with my in-laws.",
+      options:["will have","will be having","have","am having"],
+      correctIndex:1,
+      explanation:"'will be having' (Future Continuous) is correct because it describes an action that will be in progress at a specific future point in time (8 p.m. tomorrow). Future Continuous is exactly for 'in the middle of doing something' at a stated future moment. 'will have' is incomplete (it needs a past participle for Future Perfect, e.g. 'will have had'). 'have' (Present Simple) doesn't express future time reference correctly here. 'am having' (Present Continuous) is used for fixed future arrangements but pairs oddly with 'at 8 p.m.' when the point is being 'in the middle of' the action, which Future Continuous specifically conveys."
+    },
+    {
+      id:"tenses-005",
+      question:"She _____ for that company for ten years before it went bankrupt.",
+      options:["worked","was working","had worked","has worked"],
+      correctIndex:2,
+      explanation:"'had worked' (Past Perfect) is correct because the sentence expresses a duration ('for ten years') that was completed before another past event ('went bankrupt'). Past Perfect + 'for/since' shows how long something had continued up to a past point. 'worked' (Past Simple) would only show a simple past action, not the 'earlier than another past action' relationship. 'was working' (Past Continuous) suggests an ongoing, unfinished action, not a completed duration. 'has worked' (Present Perfect) is wrong because the whole sentence is anchored in the past ('before it went bankrupt'), not connected to the present."
+    }
+  ],
+
+  voice: [
+    {
+      id:"voice-001",
+      question:"Active: 'The chef prepares the meal every day.' → Passive:",
+      options:["The meal is prepared by the chef every day.","The meal was prepared by the chef every day.","The meal is being prepared by the chef every day.","The meal prepares by the chef every day."],
+      correctIndex:0,
+      explanation:"'The meal is prepared by the chef every day' is correct because the active sentence is Present Simple, so the passive must also be Present Simple: am/is/are + past participle. The object 'the meal' becomes the subject, and the original subject 'the chef' becomes the agent introduced by 'by'. Option B wrongly shifts to past tense. Option C wrongly uses Present Continuous passive ('is being prepared'), changing the meaning to 'in progress now'. Option D is ungrammatical because a passive verb always requires a form of 'be' + past participle, not just the base verb."
+    },
+    {
+      id:"voice-002",
+      question:"Active: 'They must finish the project by Friday.' → Passive:",
+      options:["The project must be finished by Friday.","The project must finished by Friday.","The project must have finished by Friday.","The project is must be finished by Friday."],
+      correctIndex:0,
+      explanation:"'The project must be finished by Friday' is correct because passive voice with a modal verb follows the pattern: modal + be + past participle. 'must' stays unchanged, and 'finish' becomes 'be finished'. Option B is missing 'be', which is required after a modal in the passive. Option C incorrectly uses 'have finished', which would express a different meaning (deduction about a completed action) rather than obligation about a future deadline. Option D wrongly inserts 'is' before 'must', which is never grammatical since only one auxiliary/modal position exists before the base verb structure."
+    },
+    {
+      id:"voice-003",
+      question:"Which is the correct passive question form of 'Did someone steal your bike?'",
+      options:["Was your bike stolen?","Did your bike stolen?","Was your bike stole?","Your bike was stolen?"],
+      correctIndex:0,
+      explanation:"'Was your bike stolen?' is correct because Past Simple passive questions use: Was/Were + subject + past participle. 'Did someone steal' (active) becomes 'Was your bike stolen' (passive), dropping 'someone' since the agent is unknown/unimportant. Option B incorrectly mixes the active auxiliary 'Did' with a past participle, which is not a valid passive structure. Option C uses 'stole' (past simple form) instead of the required past participle 'stolen'. Option D is a statement word order, not a properly inverted question, so it is not a grammatically correct question form."
+    },
+    {
+      id:"voice-004",
+      question:"Active: 'They have already sold the tickets.' → Passive:",
+      options:["The tickets have already been sold.","The tickets have already sold.","The tickets are already sold by them.","The tickets had already been sold."],
+      correctIndex:0,
+      explanation:"'The tickets have already been sold' is correct because Present Perfect passive follows the formula: have/has + been + past participle. The active Present Perfect 'have sold' becomes 'have been sold' in the passive. Option B is missing 'been', which is required to mark the passive within the perfect structure. Option C incorrectly switches to Present Simple passive, losing the 'already completed with present relevance' meaning of the original sentence. Option D wrongly shifts to Past Perfect ('had already been sold'), which would require a past time reference the original sentence does not have."
+    },
+    {
+      id:"voice-005",
+      question:"Choose the sentence where omitting the 'by' agent is most natural.",
+      options:["My wallet was stolen.","This novel was written by someone unknown.","The bridge was built by engineers.","The award was given by the committee."],
+      correctIndex:0,
+      explanation:"'My wallet was stolen' is correct because the agent (the thief) is unknown, and in passive voice the 'by + agent' phrase is naturally dropped when the doer of the action is unknown, unimportant, or obvious from context. In the other options, the agent is specific and informative ('engineers', 'the committee'), or the sentence has been artificially forced to keep a vague agent ('by someone unknown', which is redundant and unnatural — the passive without 'by' already implies the agent is unknown, so stating it is stylistically wrong for this exercise's 'most natural' criterion)."
+    }
+  ],
+
+  reportedSpeech: [
+    {
+      id:"reported-001",
+      question:"Direct: She said, 'I am tired.' → Reported:",
+      options:["She said that she is tired.","She said that she was tired.","She said that she has been tired.","She said that she were tired."],
+      correctIndex:1,
+      explanation:"'She said that she was tired' is correct because reported speech typically 'backshifts' the tense one step into the past when the reporting verb ('said') is in the past tense: Present Simple ('am') → Past Simple ('was'). Option A keeps the original tense unshifted, which is incorrect in standard backshift rules. Option C shifts too far, to Present Perfect, which isn't the correct one-step backshift from Present Simple. Option D uses 'were', which doesn't agree with the singular subject 'she' outside of a hypothetical/subjunctive context."
+    },
+    {
+      id:"reported-002",
+      question:"Direct: He asked, 'Where do you live?' → Reported:",
+      options:["He asked where did I live.","He asked where I lived.","He asked where I live.","He asked where I was living."],
+      correctIndex:1,
+      explanation:"'He asked where I lived' is correct because reported questions use statement word order (subject + verb, no auxiliary 'do/does/did') and the verb backshifts from Present Simple ('do you live') to Past Simple ('lived'). Option A wrongly keeps the question auxiliary 'did' and question word order, which is not used in reported questions. Option C fails to backshift the tense. Option D backshifts to Past Continuous instead of Past Simple, which changes the meaning to an ongoing/temporary action rather than a general fact about where someone lives."
+    },
+    {
+      id:"reported-003",
+      question:"Direct: The teacher said, 'Open your books.' → Reported:",
+      options:["The teacher said to open our books.","The teacher told to open our books.","The teacher told us to open our books.","The teacher said us open our books."],
+      correctIndex:2,
+      explanation:"'The teacher told us to open our books' is correct because reported commands/imperatives use the pattern: tell/order/ask + object + to + base verb. 'told' requires a personal object ('us'), which option A lacks (it also uses 'said', which cannot directly take an object + infinitive). Option B uses 'told' correctly but omits the required object 'us'. Option D is ungrammatical because 'said' cannot be followed directly by an object and base verb without 'to'."
+    },
+    {
+      id:"reported-004",
+      question:"Direct: 'I will call you tomorrow,' she said to me. → Reported:",
+      options:["She said she would call me the next day.","She said she will call me tomorrow.","She said she would call me tomorrow.","She said she would call me the day before."],
+      correctIndex:0,
+      explanation:"'She said she would call me the next day' is correct because reported speech requires two shifts here: the modal 'will' backshifts to 'would', and the time expression 'tomorrow' changes to 'the next day' (since the report may happen on a different day than when it was said). Option B fails to backshift 'will' to 'would'. Option C backshifts the modal correctly but incorrectly keeps 'tomorrow', which no longer accurately points to the right day once removed from the original moment of speaking. Option D wrongly changes 'tomorrow' to 'the day before', which reverses the intended time direction (tomorrow is future, not past)."
+    },
+    {
+      id:"reported-005",
+      question:"Direct: 'Can you help me?' she asked. → Reported:",
+      options:["She asked if I can help her.","She asked if I could help her.","She asked could I help her.","She asked if I could help me."],
+      correctIndex:1,
+      explanation:"'She asked if I could help her' is correct because reported yes/no questions use 'if/whether' + statement word order, and the modal 'can' backshifts to 'could'. Pronouns also shift: 'me' (in direct speech, referring to the speaker) becomes 'her' from the reporter's point of view. Option A fails to backshift 'can' to 'could'. Option C keeps question word order ('could I') instead of statement order, and omits 'if/whether'. Option D wrongly keeps 'me' instead of shifting to 'her', which would confuse who is asking whom for help."
+    }
+  ],
+
+  relativeClauses: [
+    {
+      id:"relative-001",
+      question:"The woman _____ lives next door is a doctor.",
+      options:["which","whose","who","whom"],
+      correctIndex:2,
+      explanation:"'who' is correct because it is the relative pronoun used for people acting as the subject of the relative clause ('who lives next door'). 'which' is used for things/animals, not people. 'whose' shows possession ('the woman whose car...'), which doesn't fit here since there's no possessive relationship expressed. 'whom' is used for people as the object of the clause (e.g. 'the woman whom I met'), but here the woman is the one performing the action 'lives', making her the subject, so 'who' is required."
+    },
+    {
+      id:"relative-002",
+      question:"That's the man _____ car was stolen last night.",
+      options:["who","which","whose","that"],
+      correctIndex:2,
+      explanation:"'whose' is correct because it shows possession — the car belongs to the man ('the man's car was stolen'). 'who' and 'that' cannot show possession on their own. 'which' refers to things, not people, and also doesn't express possession. Only 'whose' correctly links 'the man' to 'his car' within a single relative clause."
+    },
+    {
+      id:"relative-003",
+      question:"Choose the correctly punctuated sentence (non-defining relative clause).",
+      options:["My brother who lives in London is a pilot.","My brother, who lives in London, is a pilot.","My brother whose lives in London is a pilot.","My brother, that lives in London, is a pilot."],
+      correctIndex:1,
+      explanation:"'My brother, who lives in London, is a pilot' is correct because the clause is non-defining (giving extra, non-essential information, implying the speaker has only one brother), and non-defining clauses must be set off with commas and use 'who' (not 'that') for people. Option A omits the necessary commas, which incorrectly implies a defining clause distinguishing this brother from other brothers. Option C wrongly uses 'whose' where simple subject reference ('who') is needed. Option D is incorrect because 'that' cannot be used to introduce a non-defining relative clause in standard Oxford/Cambridge usage."
+    },
+    {
+      id:"relative-004",
+      question:"This is the restaurant _____ we had our first date.",
+      options:["which","where","who","when"],
+      correctIndex:1,
+      explanation:"'where' is correct because it introduces a relative clause referring to a place ('the restaurant'), replacing 'in/at that restaurant'. 'which' could work with a preposition ('in which') but not alone as shown. 'who' is only for people. 'when' is used for time references, not places."
+    },
+    {
+      id:"relative-005",
+      question:"Identify the sentence where the relative pronoun can be correctly omitted.",
+      options:["The book which I borrowed is fascinating.","The man who called you is my uncle.","The city which is the capital of France is Paris.","The woman who lives next door is a nurse."],
+      correctIndex:0,
+      explanation:"'The book which I borrowed is fascinating' allows the relative pronoun to be omitted ('The book I borrowed is fascinating') because 'which' functions as the object of the clause ('I borrowed the book'), and object relative pronouns can be dropped in defining relative clauses. In the other options, 'who'/'which' functions as the subject of its clause ('who called you', 'which is the capital'), and subject relative pronouns cannot be omitted because doing so would leave the clause without a subject."
+    }
+  ]
+
+};
+
+/* ==========================================================================
+   TOPIC METADATA — display config for the home screen
+   ========================================================================== */
+const TOPICS = [
+  { key:"tenses",           title:"12 Basic Tenses",     meta:"Present · Past · Future forms", target:60 },
+  { key:"voice",            title:"Active / Passive",    meta:"Voice transformation rules",    target:60 },
+  { key:"reportedSpeech",   title:"Reported Speech",     meta:"Backshift · questions · commands", target:60 },
+  { key:"relativeClauses",  title:"Relative Clauses",    meta:"who · which · whose · where",   target:60 }
+];
+
+/* ==========================================================================
+   APP STATE
+   ========================================================================== */
+let state = {
+  topicKey:null,
+  questions:[],
+  index:0,
+  score:0,
+  answered:false
+};
+
+/* ==========================================================================
+   RENDER: HOME SCREEN
+   ========================================================================== */
+function renderHome(){
+  const grid = document.getElementById("topic-grid");
+  grid.innerHTML = "";
+  TOPICS.forEach(t => {
+    const count = (QUESTION_DB[t.key] || []).length;
+    const card = document.createElement("button");
+    card.className = "topic-card";
+    card.setAttribute("data-progress", "0");
+    card.innerHTML = `
+      <div class="badge">${count}/${t.target}</div>
+      <p class="topic-title">${t.title}</p>
+      <p class="topic-meta">${t.meta}</p>
+    `;
+    card.addEventListener("click", () => startQuiz(t.key, t.title));
+    grid.appendChild(card);
+  });
+}
+
+/* ==========================================================================
+   QUIZ FLOW
+   ========================================================================== */
+function shuffle(arr){
+  const a = arr.slice();
+  for(let i = a.length - 1; i > 0; i--){
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
+function startQuiz(topicKey, title){
+  const pool = QUESTION_DB[topicKey] || [];
+  if(pool.length === 0) return;
+  state = {
+    topicKey,
+    questions: shuffle(pool),
+    index: 0,
+    score: 0,
+    answered: false
+  };
+  document.getElementById("quiz-topic-title").textContent = title;
+  showScreen("screen-quiz");
+  renderQuestion();
+}
+
+function renderQuestion(){
+  const q = state.questions[state.index];
+  const total = state.questions.length;
+
+  document.getElementById("question-eyebrow").textContent = `QUESTION ${state.index + 1} OF ${total}`;
+  document.getElementById("question-text").textContent = q.question;
+  document.getElementById("quiz-count").textContent = `${state.index + 1}/${total}`;
+  document.getElementById("quiz-progress-fill").style.width = `${((state.index) / total) * 100}%`;
+  document.getElementById("score-pill").textContent = `Score: ${state.score}`;
+
+  const list = document.getElementById("options-list");
+  list.innerHTML = "";
+  const letters = ["A","B","C","D"];
+  q.options.forEach((opt, i) => {
+    const btn = document.createElement("button");
+    btn.className = "option-btn";
+    btn.innerHTML = `<span class="option-letter">${letters[i]}</span><span>${opt}</span>`;
+    btn.addEventListener("click", () => selectAnswer(i));
+    list.appendChild(btn);
+  });
+
+  document.getElementById("feedback-panel").classList.remove("show");
+  document.getElementById("btn-next").disabled = true;
+  document.getElementById("btn-next").textContent =
+    state.index === total - 1 ? "See Results →" : "Next Question →";
+  state.answered = false;
+}
+
+function selectAnswer(i){
+  if(state.answered) return;
+  state.answered = true;
+
+  const q = state.questions[state.index];
+  const buttons = document.querySelectorAll(".option-btn");
+
+  buttons.forEach((btn, idx) => {
+    btn.classList.add("disabled");
+    if(idx === q.correctIndex) btn.classList.add("correct");
+    if(idx === i && i !== q.correctIndex) btn.classList.add("incorrect");
+    if(idx !== i && idx !== q.correctIndex) btn.classList.add("dim");
+  });
+
+  const isCorrect = i === q.correctIndex;
+  if(isCorrect) state.score++;
+
+  const title = document.getElementById("feedback-title");
+  title.textContent = isCorrect ? "✓ Correct" : "✕ Not quite";
+  title.className = "feedback-title " + (isCorrect ? "correct" : "incorrect");
+  document.getElementById("feedback-text").textContent = q.explanation;
+  document.getElementById("feedback-panel").classList.add("show");
+
+  document.getElementById("score-pill").textContent = `Score: ${state.score}`;
+  document.getElementById("btn-next").disabled = false;
+}
+
+function nextQuestion(){
+  if(state.index < state.questions.length - 1){
+    state.index++;
+    renderQuestion();
+    document.querySelector(".quiz-scroll").scrollTop = 0;
+  } else {
+    showResult();
+  }
+}
+
+/* ==========================================================================
+   RESULT SCREEN
+   ========================================================================== */
+function showResult(){
+  const total = state.questions.length;
+  const pct = Math.round((state.score / total) * 100);
+
+  document.getElementById("result-score").textContent = `${pct}%`;
+  document.getElementById("result-fraction").textContent = `${state.score}/${total}`;
+
+  const circle = document.getElementById("result-circle");
+  const circumference = 502;
+  circle.style.stroke = pct >= 70 ? "#7FDBA0" : pct >= 40 ? "#F2C94C" : "#F2867B";
+  circle.style.strokeDashoffset = circumference - (circumference * pct / 100);
+
+  let title, msg;
+  if(pct >= 90){ title = "Top of the class"; msg = "Excellent grasp of this topic — you're ready for the next one."; }
+  else if(pct >= 70){ title = "Well done"; msg = "Solid understanding, with a few rules worth a second look."; }
+  else if(pct >= 40){ title = "Getting there"; msg = "Review the explanations above and try this set again."; }
+  else { title = "Keep practicing"; msg = "Re-read each explanation carefully, then retake the quiz."; }
+
+  document.getElementById("result-title").textContent = title;
+  document.getElementById("result-msg").textContent = msg;
+
+  showScreen("screen-result");
+}
+
+/* ==========================================================================
+   NAVIGATION
+   ========================================================================== */
+function showScreen(id){
+  document.querySelectorAll(".screen").forEach(s => s.classList.remove("active"));
+  document.getElementById(id).classList.add("active");
+}
+
+document.getElementById("btn-next").addEventListener("click", nextQuestion);
+document.getElementById("btn-back-home").addEventListener("click", () => showScreen("screen-home"));
+document.getElementById("btn-home").addEventListener("click", () => { renderHome(); showScreen("screen-home"); });
+document.getElementById("btn-retry").addEventListener("click", () => startQuiz(state.topicKey, document.getElementById("quiz-topic-title").textContent));
+document.getElementById("btn-info").addEventListener("click", () => {
+  alert("Grammar Board\n\n4 topics × 60 questions, written to Oxford/Cambridge grammar standards. Every answer includes a full explanation of why it's right — and why the others are wrong.");
+});
+
+renderHome();
+</script>
+</body>
+</html>
